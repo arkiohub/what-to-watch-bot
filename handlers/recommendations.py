@@ -22,11 +22,20 @@ def format_movie_card(item: RecommendedMovie) -> str:
     title = html.escape(m.title)
     desc = html.escape(m.description)
 
-    # Невидимая ссылка встраивает крупный постер внутрь текстового сообщения, если poster_url заполнен
+    hours = m.duration_min // 60
+    mins = m.duration_min % 60
+    if hours > 0 and mins > 0:
+        duration_str = f"{hours} ч {mins} мин"
+    elif hours > 0:
+        duration_str = f"{hours} ч"
+    else:
+        duration_str = f"{mins} мин"
+
+    # Невидимая ссылка встраивает крупный постер внутри текстового сообщения, если poster_url заполнен
     invisible_poster = f'<a href="{html.escape(m.poster_url)}">&#8203;</a>' if m.poster_url else ""
 
     lines = [f"{invisible_poster}<b>{title} ({m.year})</b>", ""]
-    lines.append(f"⏱ {m.duration_min} минут")
+    lines.append(f"⏱ {duration_str}")
     if m.genre:
         lines.append(f"🎭 {html.escape(m.genre)}")
     lines.append("")
