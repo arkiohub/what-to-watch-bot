@@ -18,7 +18,6 @@ from services.recommendation import get_recommendations, RecommendedMovie
 logger = logging.getLogger(__name__)
 router = Router()
 
-# Защита от двойных нажатий одним пользователем
 _processing_users: set[int] = set()
 
 
