@@ -3,6 +3,7 @@ from aiogram import Router, types
 from aiogram.filters import Command
 
 from config import Config
+from services.analytics import build_stats_report
 from services.cache import MovieCache
 
 router = Router()
@@ -57,18 +58,21 @@ async def cmd_stats(message: types.Message, config: Config, cache: MovieCache) -
         await message.answer("⛔ У вас нет прав для выполнения этой команды.")
         return
 
+    wait_msg = await message.answer("⏳ Собираю статистику...")
+
     total = len(cache.all_movies)
     active = len(cache.active_movies)
     updated_str = cache.last_updated.strftime("%d.%m.%Y %H:%M") if cache.last_updated else "неизвестно"
 
+    user_report = await build_stats_report(config)
+
     text = (
-        "📊 <b>Статистика базы фильмов</b>\n\n"
-        f"Всего строк загружено: <b>{total}</b>\n"
-        f"Активных фильмов (is_active=TRUE): <b>{active}</b>\n"
-        f"Источник: <b>{cache.source}</b>\n"
-        f"Последнее обновление: <b>{updated_str}</b>"
+        f"{user_report}\n\n"
+        "🗄 <b>База фильмов:</b>\n"
+        f"  • Загружено / активных: <b>{total} / {active}</b>\n"
+        f"  • Обновлено: <b>{updated_str}</b>"
     )
-    await message.answer(text, parse_mode="HTML")
+    await wait_msg.edit_text(text, parse_mode="HTML")
 
 
 @router.message(Command("help"))
@@ -82,7 +86,7 @@ async def cmd_help(message: types.Message, config: Config) -> None:
     text = (
         "🛠 <b>Команды администратора</b>\n\n"
         "/update — принудительно обновить базу фильмов из Google Таблицы\n"
-        "/stats — показать статистику загруженной базы\n"
+        "/stats — показать статистику пользователей и базы\n"
         "/help — показать эту справку\n"
         "/start — запустить пользовательский сценарий подбора"
     )
