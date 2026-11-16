@@ -3,11 +3,13 @@ from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import LinkPreviewOptions
 
+from config import Config
 from keyboards.selection import (
     get_vibe_keyboard,
     get_recommendations_keyboard,
     get_empty_recommendations_keyboard,
 )
+from services.analytics import log_event
 from services.cache import MovieCache
 from services.recommendation import get_recommendations, RecommendedMovie
 
@@ -48,6 +50,7 @@ async def show_recommendations_step(
     callback: types.CallbackQuery,
     state: FSMContext,
     cache: MovieCache,
+    config: Config,
     is_more: bool = False,
 ) -> None:
     user_id = callback.from_user.id
@@ -128,6 +131,17 @@ async def show_recommendations_step(
                 parse_mode="HTML",
                 link_preview_options=LinkPreviewOptions(is_disabled=True),
             )
+
+        event_name = "reroll" if is_more else "recommend"
+        await log_event(
+            config=config,
+            user_id=user_id,
+            username=callback.from_user.username,
+            event=event_name,
+            vibe=vibe,
+            duration=duration,
+            movie_title=item.movie.title,
+        )
         await callback.answer()
     finally:
         _processing_users.discard(user_id)
@@ -138,8 +152,9 @@ async def process_more_recommendations(
     callback: types.CallbackQuery,
     state: FSMContext,
     cache: MovieCache,
+    config: Config,
 ) -> None:
-    await show_recommendations_step(callback, state, cache, is_more=True)
+    await show_recommendations_step(callback, state, cache, config, is_more=True)
 
 
 @router.callback_query(F.data == "rec:restart")
