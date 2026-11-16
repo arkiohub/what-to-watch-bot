@@ -1,4 +1,6 @@
 import html
+import logging
+from typing import Optional
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import LinkPreviewOptions
@@ -13,6 +15,7 @@ from services.analytics import log_event
 from services.cache import MovieCache
 from services.recommendation import get_recommendations, RecommendedMovie
 
+logger = logging.getLogger(__name__)
 router = Router()
 
 # Защита от двойных нажатий одним пользователем
@@ -33,7 +36,6 @@ def format_movie_card(item: RecommendedMovie) -> str:
     else:
         duration_str = f"{mins} мин"
 
-    # Невидимая ссылка встраивает крупный постер внутри текстового сообщения, если poster_url заполнен
     invisible_poster = f'<a href="{html.escape(m.poster_url)}">&#8203;</a>' if m.poster_url else ""
 
     lines = [f"{invisible_poster}<b>{title} ({m.year})</b>", ""]
@@ -50,7 +52,7 @@ async def show_recommendations_step(
     callback: types.CallbackQuery,
     state: FSMContext,
     cache: MovieCache,
-    config: Config,
+    config: Optional[Config] = None,
     is_more: bool = False,
 ) -> None:
     user_id = callback.from_user.id
@@ -132,17 +134,21 @@ async def show_recommendations_step(
                 link_preview_options=LinkPreviewOptions(is_disabled=True),
             )
 
-        event_name = "reroll" if is_more else "recommend"
-        await log_event(
-            config=config,
-            user_id=user_id,
-            username=callback.from_user.username,
-            event=event_name,
-            vibe=vibe,
-            duration=duration,
-            movie_title=item.movie.title,
-        )
+        if config is not None:
+            event_name = "reroll" if is_more else "recommend"
+            await log_event(
+                config=config,
+                user_id=user_id,
+                username=callback.from_user.username,
+                event=event_name,
+                vibe=vibe,
+                duration=duration,
+                movie_title=item.movie.title,
+            )
         await callback.answer()
+    except Exception as e:
+        logger.exception(f"Ошибка при выдаче рекомендации: {e}")
+        await callback.answer("⚠️ Произошла ошибка при подборе. Нажми /start и попробуй снова.", show_alert=True)
     finally:
         _processing_users.discard(user_id)
 
@@ -152,9 +158,9 @@ async def process_more_recommendations(
     callback: types.CallbackQuery,
     state: FSMContext,
     cache: MovieCache,
-    config: Config,
+    config: Optional[Config] = None,
 ) -> None:
-    await show_recommendations_step(callback, state, cache, config, is_more=True)
+    await show_recommendations_step(callback, state, cache, config=config, is_more=True)
 
 
 @router.callback_query(F.data == "rec:restart")
