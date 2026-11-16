@@ -3,6 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import LinkPreviewOptions
 
+from config import Config
 from keyboards.selection import (
     get_vibe_keyboard,
     get_duration_keyboard,
@@ -40,7 +41,12 @@ async def start_selection(callback: types.CallbackQuery, state: FSMContext) -> N
 
 
 @router.callback_query(F.data.startswith("vibe:"))
-async def process_vibe(callback: types.CallbackQuery, state: FSMContext, cache: MovieCache) -> None:
+async def process_vibe(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    cache: MovieCache,
+    config: Config,
+) -> None:
     current_state = await state.get_state()
     if current_state not in {SelectionStates.choosing_vibe.state, SelectionStates.choosing_duration.state}:
         await callback.answer("Подбор устарел. Нажмите /start, чтобы начать заново.", show_alert=True)
@@ -51,7 +57,7 @@ async def process_vibe(callback: types.CallbackQuery, state: FSMContext, cache: 
     if vibe == "surprise":
         await state.update_data(vibe="surprise", duration="any", watch_context="any", shown_ids=[])
         await state.set_state(SelectionStates.viewing_results)
-        await show_recommendations_step(callback, state, cache, is_more=False)
+        await show_recommendations_step(callback, state, cache, config, is_more=False)
         return
 
     await state.update_data(vibe=vibe)
@@ -86,7 +92,12 @@ async def process_duration(callback: types.CallbackQuery, state: FSMContext) -> 
 
 
 @router.callback_query(F.data.startswith("ctx:"))
-async def process_context(callback: types.CallbackQuery, state: FSMContext, cache: MovieCache) -> None:
+async def process_context(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    cache: MovieCache,
+    config: Config,
+) -> None:
     current_state = await state.get_state()
     data = await state.get_data()
     if current_state != SelectionStates.choosing_context.state or "vibe" not in data or "duration" not in data:
@@ -96,7 +107,7 @@ async def process_context(callback: types.CallbackQuery, state: FSMContext, cach
     watch_context = callback.data.split(":", 1)[1]
     await state.update_data(watch_context=watch_context, shown_ids=[])
     await state.set_state(SelectionStates.viewing_results)
-    await show_recommendations_step(callback, state, cache, is_more=False)
+    await show_recommendations_step(callback, state, cache, config, is_more=False)
 
 
 @router.callback_query(F.data.startswith("back:"))
